@@ -1,5 +1,5 @@
 ---
-description: Hackathon scope and time discipline
+description: Hackathon scope, time discipline, and commit standards
 alwaysApply: true
 ---
 
@@ -7,7 +7,6 @@ alwaysApply: true
 
 - 48-hour solo build. Working code over perfect code.
 - Follow the milestone plan in docs/clash-companion-final-plan-v2.md
-- Commit after every working milestone
 - Write complete, runnable code — no TODO stubs
 - If a task exceeds 1.5x its time estimate, flag it
 - The deliverable is a video demo (editable) + public GitHub repo
@@ -21,4 +20,66 @@ alwaysApply: true
 - Multiple games, on-device YOLO, on-device LLM, iOS
 - Custom vision model training, automatic elixir reading
 - Backend/database — no Supabase, keys live in local.properties
-- Hotword biasing (transducer-only in sherpa-onnx, not available for Moonshine)
+
+## Git Commit Standards (MANDATORY)
+
+Judges review the commit history. Every commit must look professional and tell a clear story of incremental progress.
+
+### Rules
+1. **ONE milestone = ONE commit.** Never squash multiple milestones together.
+2. **Conventional Commits format.** Every commit MUST use this structure:
+3. **Imperative mood** in the subject line ("Add parser" not "Added parser").
+4. **No empty commits.** Don't commit unless there are meaningful changes.
+5. **Stage only relevant files.** Never commit secrets, build artifacts, or IDE files.
+6. **Commit IMMEDIATELY after each milestone passes testing.** Don't batch work.
+
+### Commit Message Format
+```
+feat(M#): Short imperative description of what this milestone delivers
+
+- Bullet point: specific component/file built and what it does
+- Bullet point: key technical decisions or patterns used
+- Bullet point: another deliverable from this milestone
+- ...list ALL significant additions, not just a summary
+
+Tested: How this was verified (device, specific commands/actions, results)
+Device: Samsung Galaxy A35, Android 16, 1080x2340
+```
+
+### Type Prefixes
+- `feat` — New feature or milestone (most commits will be this)
+- `fix` — Bug fix for something that was previously working
+- `refactor` — Code restructuring with no behavior change
+- `docs` — Documentation only (README, comments, AGENTS.md)
+- `chore` — Build config, dependencies, CI, gitignore changes
+
+### Examples of GOOD commits
+```
+feat(M2): On-device STT with Moonshine Base via sherpa-onnx
+
+- SpeechService as foreground service with mic capture at 16kHz
+- Silero VAD for speech endpoint detection (250ms trailing silence)
+- Moonshine Base int8 offline recognition via sherpa-onnx JNI
+- 300ms silence padding before/after each segment (Moonshine accuracy fix)
+- Overlay "Start/Stop Listening" toggle wired to SpeechService
+- sherpa-onnx Kotlin bindings: Vad, OfflineRecognizer, OfflineStream
+
+Tested: "balloon bridge", "hog rider", "fireball" all recognized <200ms
+Device: Samsung Galaxy A35, Android 16, 1080x2340
+```
+
+```
+fix(M2): Correct VAD config parameter name preventing compilation
+
+- VadModelConfig uses `sileroVadModelConfig` not `sileroVad`
+- Also added missing btnMicPermission and btnSpeech to activity_main.xml
+
+Tested: Clean build, speech service starts and transcribes successfully
+Device: Samsung Galaxy A35, Android 16, 1080x2340
+```
+
+### Examples of BAD commits (NEVER do these)
+- `M0+M1 - Tap injection and screen capture working` (squashed milestones, no body, no prefix)
+- `fix stuff` (meaningless, no context)
+- `wip` (don't commit work-in-progress)
+- `update files` (says nothing about what changed or why)

@@ -6,13 +6,13 @@ globs: "**/speech/**,**/stt/**,**/audio/**"
 # sherpa-onnx Integration
 
 - Android AAR from Maven or GitHub releases (v1.12.13+)
-- Model: Moonshine Base (62M) — NOT Tiny (WER >100% on sub-1s audio)
+- Use a transducer model that supports hotword biasing (chosen by user — NOT Moonshine)
 - Silero VAD bundled — handles speech start/end
 - Add 300ms silence padding before/after detected speech segments
 - Trailing silence endpointing: 200-250ms
-- Hotword biasing is NOT available for Moonshine (transducer-only feature in sherpa-onnx). Do not attempt.
-- Accuracy strategy: alias dictionary + deck-scoped fuzzy matching (8 candidates) + post-correction rules
-- STT confidence scores may not exist. Gate on parser similarity (Levenshtein score), not sttResult.confidence.
+- Hotword biasing: feed card names + slang as hotwords (boost 5.0-6.0)
+- Accuracy strategy: hotword biasing + alias dictionary + deck-scoped fuzzy matching (8 candidates) + post-correction rules
+- STT confidence: check if the chosen transducer model provides it. If not, gate on parser similarity (Levenshtein score).
 - Kotlin API package: com.k2fsa.sherpa.onnx
 - Reference: github.com/k2-fsa/sherpa-onnx/tree/master/android
 - Fallback: Android SpeechRecognizer API if sherpa-onnx fails after 2 hours

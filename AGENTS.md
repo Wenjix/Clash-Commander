@@ -58,4 +58,27 @@ app/src/main/
 - ALL coordinates are 1080x2340 hardcoded
 - ALL HTTP calls use OkHttp with coroutines on Dispatchers.IO
 - ALL JSON parsing uses Gson
-- Commit after every working milestone
+
+## Git Commit Standards
+
+Judges review commit history. Every commit must be professional and tell a story.
+
+### Format (Conventional Commits)
+```
+feat(M#): Short imperative description of milestone deliverable
+
+- Bullet: specific component built and what it does
+- Bullet: key technical decision or pattern used
+- Bullet: each significant file/feature added
+- ...list ALL significant additions
+
+Tested: How verified (device, commands, results)
+Device: Samsung Galaxy A35, Android 16, 1080x2340
+```
+
+### Rules
+- **ONE milestone = ONE commit.** Never squash milestones.
+- **Conventional type prefixes:** `feat`, `fix`, `refactor`, `docs`, `chore`
+- **Imperative mood** in subject ("Add X" not "Added X")
+- **Commit immediately** after milestone passes testing
+- **Never commit** secrets, build artifacts, IDE files, or WIP code

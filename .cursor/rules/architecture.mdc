@@ -28,7 +28,7 @@ Commands route most-specific to least-specific:
 All touch injection must go through safeTap() which includes a touch-state gate to prevent simultaneous gesture conflicts. Never call raw dispatchGesture().
 
 ## Confidence Gating
-Gate on parser match similarity (Levenshtein score), NOT on STT confidence — sherpa-onnx with Moonshine does not provide calibrated confidence scores. Threshold scales with elixir cost (0.85 for 5+, 0.70 for 3-4, 0.60 for 1-2).
+Prefer STT confidence if the transducer model provides it. Otherwise gate on parser match similarity (Levenshtein score). Threshold scales with elixir cost (0.85 for 5+, 0.70 for 3-4, 0.60 for 1-2).
 
 ## pHash Hand Detection — Dim Card Handling
 Cards are dimmed/greyed when elixir is insufficient. Brightness-normalize every crop before correlation: subtract mean, divide by std. Apply to both stored templates and live crops. Without this, hand detection fails on dim cards.

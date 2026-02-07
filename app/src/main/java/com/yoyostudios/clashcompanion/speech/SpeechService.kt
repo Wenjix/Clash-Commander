@@ -92,23 +92,28 @@ class SpeechService : Service() {
             )
             Log.i(TAG, "STT: Silero VAD initialized")
 
-            // Initialize Moonshine Base offline recognizer
-            Log.i(TAG, "STT: Initializing Moonshine Base int8...")
-            val modelDir = "sherpa-onnx-moonshine-base-en-int8"
+            // Initialize Zipformer Transducer with hotword biasing
+            Log.i(TAG, "STT: Initializing Zipformer Transducer int8 with hotwords...")
+            val modelDir = "sherpa-onnx-zipformer-en-2023-04-01"
             val recognizerConfig = OfflineRecognizerConfig(
                 featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
                 modelConfig = OfflineModelConfig(
-                    moonshine = OfflineMoonshineModelConfig(
-                        preprocessor = "$modelDir/preprocess.onnx",
-                        encoder = "$modelDir/encode.int8.onnx",
-                        uncachedDecoder = "$modelDir/uncached_decode.int8.onnx",
-                        cachedDecoder = "$modelDir/cached_decode.int8.onnx",
+                    transducer = OfflineTransducerModelConfig(
+                        encoder = "$modelDir/encoder-epoch-99-avg-1.int8.onnx",
+                        decoder = "$modelDir/decoder-epoch-99-avg-1.int8.onnx",
+                        joiner = "$modelDir/joiner-epoch-99-avg-1.int8.onnx",
                     ),
                     tokens = "$modelDir/tokens.txt",
                     numThreads = 2,
                     debug = false,
                     provider = "cpu",
+                    modelingUnit = "bpe",
+                    bpeVocab = "$modelDir/bpe.vocab",
                 ),
+                decodingMethod = "modified_beam_search",
+                maxActivePaths = 4,
+                hotwordsFile = "hotwords.txt",
+                hotwordsScore = 2.0f,
             )
             offlineRecognizer = OfflineRecognizer(
                 assetManager = application.assets,
@@ -219,7 +224,7 @@ class SpeechService : Service() {
 
                     Log.i(TAG, "STT: VAD detected speech, ${segmentSamples.size} samples (${segmentSamples.size * 1000 / SAMPLE_RATE}ms)")
 
-                    // Pad with 300ms silence before and after (CRITICAL for Moonshine accuracy)
+                    // Pad with 300ms silence before and after (improves short-utterance accuracy)
                     val padded = FloatArray(SILENCE_PADDING_SAMPLES + segmentSamples.size + SILENCE_PADDING_SAMPLES)
                     System.arraycopy(segmentSamples, 0, padded, SILENCE_PADDING_SAMPLES, segmentSamples.size)
 
