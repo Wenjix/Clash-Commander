@@ -14,12 +14,6 @@ Just install and play — no build required. Voice commands work fully offline. 
 
 ---
 
-<p align="center">
-  <img src="app-screenshot.png" alt="Clash Commander UI" width="300"/>
-</p>
-
----
-
 ## What It Does
 
 Clash Commander is an Android overlay that sits on top of Clash Royale, listens to your voice, and plays cards for you. Say "knight left" and the card plays in under 200ms. Say "defend" and the AI picks the best defensive card. Say "autopilot" and the AI plays the entire match.
