@@ -20,6 +20,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.yoyostudios.clashcompanion.capture.ScreenCaptureService
 import com.yoyostudios.clashcompanion.deck.DeckManager
+import com.yoyostudios.clashcompanion.detection.CardClassifier
 import com.yoyostudios.clashcompanion.detection.HandDetector
 import com.yoyostudios.clashcompanion.overlay.OverlayManager
 import com.yoyostudios.clashcompanion.speech.SpeechService
@@ -60,6 +61,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Coordinates.init(this)
         DeckManager.loadCardDatabase(assets)
+        CardClassifier.init(this)
 
         // Register MediaProjection result handler
         mediaProjectionLauncher = registerForActivityResult(
@@ -102,13 +104,6 @@ class MainActivity : ComponentActivity() {
             if (OpusCoach.cachedPlaybook != null) {
                 opusStatus.value = "Playbook loaded"
                 opusComplete.value = true
-            }
-            // Always download fresh CDN card art templates on startup.
-            // Don't rely on stale disk-cached templates from previous sessions.
-            HandDetector.clearTemplates(this)
-            scope.launch {
-                val count = HandDetector.loadTemplatesFromCDN(DeckManager.currentDeck, this@MainActivity)
-                Log.i(TAG, "PHASH: Loaded $count/8 CDN templates on startup")
             }
         }
 
@@ -246,19 +241,13 @@ class MainActivity : ComponentActivity() {
             else -> null
         }
         if (cards != null && cards.isNotEmpty()) {
-            // New deck = old pHash templates are invalid
-            HandDetector.clearTemplates(this)
+            // New deck loaded — stop any existing scanning
             HandDetector.stopScanning()
 
             DeckManager.setDeck(cards, this)
             deckCards.value = cards
             triggerOpusAnalysis(cards)
-
-            // Download CDN card art and compute pHash templates (async, ~1 second)
-            scope.launch {
-                val count = HandDetector.loadTemplatesFromCDN(cards, this@MainActivity)
-                Log.i(TAG, "PHASH: Loaded $count/${cards.size} CDN templates for new deck")
-            }
+            Log.i(TAG, "DECK: Loaded ${cards.size} cards. ResNet classifier ready.")
         }
     }
 
@@ -298,6 +287,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         overlayManager?.hide()
         HandDetector.stopScanning()
+        CardClassifier.destroy()
         scope.cancel()
     }
 }

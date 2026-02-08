@@ -76,4 +76,7 @@ dependencies {
 
     // Coil for image loading (card art from RoyaleAPI CDN)
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // PyTorch Mobile Lite for on-device card classification (140KB ResNet)
+    implementation("org.pytorch:pytorch_android_lite:2.1.0")
 }

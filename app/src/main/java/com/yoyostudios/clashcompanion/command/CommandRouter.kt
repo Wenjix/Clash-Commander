@@ -144,7 +144,7 @@ object CommandRouter {
             return
         }
 
-        // Check card is in hand via pHash detection (M6)
+        // Check card is in hand via ResNet classifier
         val slotIndex = HandDetector.cardToSlot[card]
         if (slotIndex == null) {
             // Only show hand slots 0-3, not next-card slot 4
@@ -152,11 +152,7 @@ object CommandRouter {
                 .filterKeys { it < 4 }
                 .entries.sortedBy { it.key }
                 .joinToString { it.value }
-            val msg = if (HandDetector.isCalibrated) {
-                "Not in hand: $card (hand: $handCards)"
-            } else {
-                "Calibrate first! Tap Calibrate on overlay"
-            }
+            val msg = "Not in hand: $card (hand: $handCards)"
             overlay?.updateStatus(msg)
             Log.w(TAG, "CMD: $msg")
             return
