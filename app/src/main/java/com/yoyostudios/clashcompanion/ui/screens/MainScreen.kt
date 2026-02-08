@@ -103,36 +103,79 @@ fun MainScreen(activity: MainActivity) {
                 contentPadding = 0.dp
             ) {
                 Column {
+                    // Deck loading prompt — always visible at top
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                // Open Clash Royale so user can share deck
+                                try {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
+                                        addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+                                        setPackage("com.supercell.clashroyale")
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    activity.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (deck.isNotEmpty()) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_check_filled),
+                                contentDescription = "Done",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        } else {
+                            CrCrown(size = 26.dp)
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Text(
+                            text = "Share Deck from Clash Royale",
+                            style = CrTypography.titleMedium,
+                            color = CrColors.TextPrimary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = if (deck.isNotEmpty()) "LOADED" else "OPEN CR",
+                            style = CrTypography.labelLarge,
+                            color = if (deck.isNotEmpty()) CrColors.Green else CrColors.TextGold,
+                            fontSize = 12.sp
+                        )
+                    }
+                    ChecklistDivider()
                     ChecklistRow(
-                        step = 1,
+                        step = 2,
                         name = "Screen Overlay",
                         ready = overlayOk,
                         onClick = { activity.requestOverlayPermission() }
                     )
                     ChecklistDivider()
                     ChecklistRow(
-                        step = 2,
+                        step = 3,
                         name = "Tap Control",
                         ready = accessibilityOk,
                         onClick = { activity.requestAccessibility() }
                     )
                     ChecklistDivider()
                     ChecklistRow(
-                        step = 3,
+                        step = 4,
                         name = "Microphone",
                         ready = micOk,
                         onClick = { activity.requestMicPermission() }
                     )
                     ChecklistDivider()
                     ChecklistRow(
-                        step = 4,
+                        step = 5,
                         name = "Screen Capture",
                         ready = captureOk,
                         onClick = { activity.startScreenCapture() }
                     )
                     ChecklistDivider()
                     ChecklistRow(
-                        step = 5,
+                        step = 6,
                         name = "Voice Engine",
                         ready = speechReady,
                         loading = speechLoading,
