@@ -15,7 +15,7 @@ Just install and play — no build required. Voice commands work fully offline. 
 ---
 
 <p align="center">
-  <img src="app-screenshot.png" alt="Clash Commander UI" width="300"/>
+  <img src="app-ui.png" alt="Clash Commander UI" width="300"/>
 </p>
 
 ---
