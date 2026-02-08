@@ -42,6 +42,15 @@ class OverlayManager(private val context: Context) {
     private var minimizedParams: WindowManager.LayoutParams? = null
     private var isMinimized = false
 
+    // Periodic queue check — ensures retries happen even when hand state is stable
+    // (e.g., all cards dimmed due to low elixir, no hand changes firing)
+    private val queueCheckRunnable = object : Runnable {
+        override fun run() {
+            CommandRouter.checkQueue()
+            handler.postDelayed(this, 2000)
+        }
+    }
+
     /**
      * Make overlay transparent to ALL touches (including dispatchGesture).
      * Call before injecting taps so the overlay doesn't intercept them.
@@ -242,6 +251,10 @@ class OverlayManager(private val context: Context) {
             }
             updateStatus("Scanning hand (ResNet classifier)")
         }
+
+        // Start periodic queue check (every 2s) for elixir retry
+        handler.removeCallbacks(queueCheckRunnable)
+        handler.postDelayed(queueCheckRunnable, 2000)
     }
 
     /**
@@ -308,6 +321,7 @@ class OverlayManager(private val context: Context) {
     }
 
     fun hide() {
+        handler.removeCallbacks(queueCheckRunnable)
         HandDetector.stopScanning()
         CommandRouter.clearQueue()
         // Remove minimized button if present

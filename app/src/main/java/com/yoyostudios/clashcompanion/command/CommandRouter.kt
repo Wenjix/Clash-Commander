@@ -57,6 +57,9 @@ object CommandRouter {
     /** Cooldown between retry attempts when card is in hand but elixir was low */
     private const val QUEUE_RETRY_COOLDOWN_MS = 1500L
 
+    /** Grace period before removing a "played" entry — card may just be dimmed (low elixir) */
+    private const val QUEUE_PLAYED_GRACE_MS = 5000L
+
     /**
      * Main entry point. Called by SpeechService.onTranscript via OverlayManager.
      * Parses the transcript and routes to the appropriate execution tier.
@@ -253,10 +256,14 @@ object CommandRouter {
 
         val handSlots = HandDetector.cardToSlot
 
-        // Remove entries where we attempted to play and card is no longer in hand
-        // → card was successfully played, clean up
+        // Remove entries where card has been absent for >5s after attempt.
+        // This distinguishes "card truly played" (gone for 5+ seconds) from
+        // "card temporarily dimmed" (gone for ~1-2s due to low elixir).
+        // Dimmed cards come back when elixir regenerates; played cards don't.
         commandQueue.removeAll { q ->
-            q.lastAttemptMs > 0 && !handSlots.containsKey(q.card)
+            q.lastAttemptMs > 0
+                    && !handSlots.containsKey(q.card)
+                    && now - q.lastAttemptMs > QUEUE_PLAYED_GRACE_MS
         }
         if (commandQueue.isEmpty()) return
 
