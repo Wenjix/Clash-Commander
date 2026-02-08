@@ -290,18 +290,33 @@ object CommandParser {
         }
 
         // Level 4: Fuzzy match against all alias keys
+        // Always resolve through findDeckVariant so non-deck cards
+        // get mapped to their deck variant (e.g. P.E.K.K.A -> Mini P.E.K.K.A)
         for ((alias, card) in CardAliases.CARD_ALIASES) {
             val sim = levenshteinSimilarity(text, alias)
             if (sim > bestSimilarity) {
-                bestSimilarity = sim
-                bestCard = card
+                val resolved = findDeckVariant(card)
+                if (resolved != null) {
+                    bestSimilarity = sim
+                    bestCard = resolved
+                } else if (bestCard == null || bestCard !in deckSet) {
+                    // Only use non-deck card if we don't have a deck match yet
+                    bestSimilarity = sim
+                    bestCard = card
+                }
             }
             for (word in words) {
                 if (word.length < 2) continue
                 val wordSim = levenshteinSimilarity(word, alias)
                 if (wordSim > bestSimilarity) {
-                    bestSimilarity = wordSim
-                    bestCard = card
+                    val resolved = findDeckVariant(card)
+                    if (resolved != null) {
+                        bestSimilarity = wordSim
+                        bestCard = resolved
+                    } else if (bestCard == null || bestCard !in deckSet) {
+                        bestSimilarity = wordSim
+                        bestCard = card
+                    }
                 }
             }
         }

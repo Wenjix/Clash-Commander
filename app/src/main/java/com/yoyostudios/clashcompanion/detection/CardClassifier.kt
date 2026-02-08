@@ -2,7 +2,6 @@ package com.yoyostudios.clashcompanion.detection
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -21,7 +20,7 @@ import org.pytorch.Tensor
  *
  * Accuracy: 98.1% top-1 on validation set
  * Latency:  ~3ms per card on CPU. 5 cards = ~15ms total.
- * Replaces the entire pHash + Gemini calibration pipeline.
+ * Uses YOLOv8n-cls (6.1MB) via PyTorch Mobile Lite for real-time inference.
  */
 object CardClassifier {
 
@@ -35,6 +34,12 @@ object CardClassifier {
     private const val CONFIDENCE_THRESHOLD = 0.05f
 
     // YOLOv8 classify expects raw RGB [0, 1] -- NO ImageNet mean/std normalization
+
+    // Reusable pixel buffer: single getPixels() call vs 50K individual getPixel() JNI calls.
+    // Safe because classifyRaw is only called sequentially from the scan coroutine.
+    // NOTE: FloatArray is NOT reusable — Tensor.fromBlob holds a reference to the array,
+    // so reusing it would corrupt tensor data across sequential classify calls.
+    private val pixelBuffer = IntArray(INPUT_SIZE * INPUT_SIZE)
 
     private var module: Module? = null
 
@@ -164,24 +169,27 @@ object CardClassifier {
 
         val scaled = Bitmap.createScaledBitmap(bitmap, INPUT_SIZE, INPUT_SIZE, true)
         val numPixels = INPUT_SIZE * INPUT_SIZE
+
+        // Batch read all pixels in a single JNI call (vs 50K individual getPixel calls)
+        scaled.getPixels(pixelBuffer, 0, INPUT_SIZE, 0, 0, INPUT_SIZE, INPUT_SIZE)
+        if (scaled !== bitmap) scaled.recycle()
+
+        // Must allocate a fresh FloatArray per call — Tensor.fromBlob holds a reference
+        // to the array, so reusing a shared buffer corrupts data across sequential calls.
         val floats = FloatArray(NUM_CHANNELS * numPixels)
 
-        // First pass: read pixels and compute mean brightness
+        // Extract RGB channels into CHW float tensor layout + compute brightness
         var brightnessSum = 0.0f
-        for (y in 0 until INPUT_SIZE) {
-            for (x in 0 until INPUT_SIZE) {
-                val pixel = scaled.getPixel(x, y)
-                val idx = y * INPUT_SIZE + x
-                val r = Color.red(pixel) / 255.0f
-                val g = Color.green(pixel) / 255.0f
-                val b = Color.blue(pixel) / 255.0f
-                floats[idx] = r
-                floats[numPixels + idx] = g
-                floats[2 * numPixels + idx] = b
-                brightnessSum += (r + g + b) / 3.0f
-            }
+        for (i in 0 until numPixels) {
+            val pixel = pixelBuffer[i]
+            val r = ((pixel shr 16) and 0xFF) / 255.0f
+            val g = ((pixel shr 8) and 0xFF) / 255.0f
+            val b = (pixel and 0xFF) / 255.0f
+            floats[i] = r
+            floats[numPixels + i] = g
+            floats[2 * numPixels + i] = b
+            brightnessSum += (r + g + b) / 3.0f
         }
-        if (scaled !== bitmap) scaled.recycle()
 
         // Brightness normalization: scale all values so mean brightness matches target.
         // This makes dimmed/greyed-out cards look like normal bright cards to the model.

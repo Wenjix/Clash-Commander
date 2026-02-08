@@ -37,6 +37,11 @@ class OverlayManager(private val context: Context) {
     private var layoutParams: WindowManager.LayoutParams? = null
     private val handler = Handler(Looper.getMainLooper())
 
+    // Minimize/maximize state
+    private var minimizedView: View? = null
+    private var minimizedParams: WindowManager.LayoutParams? = null
+    private var isMinimized = false
+
     /**
      * Make overlay transparent to ALL touches (including dispatchGesture).
      * Call before injecting taps so the overlay doesn't intercept them.
@@ -192,6 +197,14 @@ class OverlayManager(private val context: Context) {
         }
         layout.addView(btnScreenshot)
 
+        // Minimize button
+        val btnMinimize = Button(context).apply {
+            text = "Minimize"
+            textSize = 12f
+            setOnClickListener { minimize() }
+        }
+        layout.addView(btnMinimize)
+
         // Close overlay button
         val btnClose = Button(context).apply {
             text = "Close Overlay"
@@ -231,9 +244,79 @@ class OverlayManager(private val context: Context) {
         }
     }
 
+    /**
+     * Minimize: hide the full overlay, show a small floating button.
+     * Hand scanning and listening KEEP RUNNING — only the UI collapses.
+     */
+    private fun minimize() {
+        if (isMinimized) return
+
+        // Hide the full overlay (but don't remove — keep references alive)
+        overlayView?.visibility = View.GONE
+
+        // Create the small floating restore button
+        val restoreBtn = Button(context).apply {
+            text = "CC"
+            textSize = 11f
+            setBackgroundColor(Color.argb(180, 30, 30, 30))
+            setTextColor(Color.argb(255, 245, 166, 35)) // Gold
+            setPadding(16, 8, 16, 8)
+            minWidth = 0
+            minimumWidth = 0
+            minHeight = 0
+            minimumHeight = 0
+            setOnClickListener { maximize() }
+        }
+
+        val miniParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 0
+            y = 100
+        }
+
+        minimizedView = restoreBtn
+        minimizedParams = miniParams
+        windowManager.addView(restoreBtn, miniParams)
+        isMinimized = true
+        Log.i(TAG, "Overlay minimized")
+    }
+
+    /**
+     * Maximize: restore the full overlay, remove the floating button.
+     */
+    private fun maximize() {
+        if (!isMinimized) return
+
+        // Remove the small button
+        minimizedView?.let {
+            try { windowManager.removeView(it) } catch (_: Exception) {}
+        }
+        minimizedView = null
+        minimizedParams = null
+
+        // Show the full overlay
+        overlayView?.visibility = View.VISIBLE
+        isMinimized = false
+        Log.i(TAG, "Overlay maximized")
+    }
+
     fun hide() {
         HandDetector.stopScanning()
         CommandRouter.clearQueue()
+        // Remove minimized button if present
+        minimizedView?.let {
+            try { windowManager.removeView(it) } catch (_: Exception) {}
+            minimizedView = null
+            minimizedParams = null
+        }
+        isMinimized = false
         overlayView?.let {
             windowManager.removeView(it)
             overlayView = null

@@ -93,6 +93,18 @@ class SpeechService : Service() {
             Log.i(TAG, "STT: Silero VAD initialized")
 
             // Initialize Zipformer Transducer with hotword biasing
+            // Use deck-boosted hotwords if available (written by DeckManager),
+            // otherwise fall back to default hotwords from assets.
+            val deckHotwords = java.io.File(application.filesDir,
+                com.yoyostudios.clashcompanion.deck.DeckManager.DECK_HOTWORDS_FILE)
+            val hotwordsPath = if (deckHotwords.exists()) {
+                Log.i(TAG, "STT: Using deck-boosted hotwords from ${deckHotwords.absolutePath}")
+                deckHotwords.absolutePath
+            } else {
+                Log.i(TAG, "STT: Using default hotwords (no deck loaded yet)")
+                "hotwords.txt"
+            }
+
             Log.i(TAG, "STT: Initializing Zipformer Transducer int8 with hotwords...")
             val modelDir = "sherpa-onnx-zipformer-en-2023-04-01"
             val recognizerConfig = OfflineRecognizerConfig(
@@ -112,7 +124,7 @@ class SpeechService : Service() {
                 ),
                 decodingMethod = "modified_beam_search",
                 maxActivePaths = 4,
-                hotwordsFile = "hotwords.txt",
+                hotwordsFile = hotwordsPath,
                 hotwordsScore = 2.0f,
             )
             offlineRecognizer = OfflineRecognizer(

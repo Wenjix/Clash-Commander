@@ -33,7 +33,7 @@ object Coordinates {
     /** Scale a reference height dimension to actual screen pixels */
     private fun dimH(refDim: Float): Int = (refDim / REF_H * screenH).toInt()
 
-    // ── Card Slot ROIs for pHash cropping ────────────────────────────────
+    // ── Card Slot ROIs for classifier cropping ────────────────────────────
     // Bounding boxes for the card ART area (not the full card frame).
     // Derived from calibrated slot centers: x=350,520,690,860 at y=2130.
     // Card art crop: 140px wide × 130px tall, starting ~100px above center.
@@ -104,8 +104,19 @@ object Coordinates {
     val FRONT_RIGHT    get() = pos(810f, 800f)
     val BACK_CENTER    get() = pos(540f, 1400f)
 
+    // Opponent tower positions (for aggressive placement near their towers)
+    val OPP_LEFT_TOWER  get() = pos(270f, 650f)
+    val OPP_RIGHT_TOWER get() = pos(810f, 650f)
+    val OPP_KING        get() = pos(540f, 550f)
+
+    // Player tower positions (for defensive placement near your towers)
+    val MY_LEFT_TOWER   get() = pos(270f, 1400f)
+    val MY_RIGHT_TOWER  get() = pos(810f, 1400f)
+    val MY_KING         get() = pos(540f, 1500f)
+
     // Map of zone name aliases to coordinates
     val ZONE_MAP: Map<String, Pair<Float, Float>> get() = mapOf(
+        // Bridge zones
         "left_bridge" to LEFT_BRIDGE,
         "left" to LEFT_BRIDGE,
         "left bridge" to LEFT_BRIDGE,
@@ -114,29 +125,98 @@ object Coordinates {
         "right" to RIGHT_BRIDGE,
         "right bridge" to RIGHT_BRIDGE,
         "bridge right" to RIGHT_BRIDGE,
+        "bridge" to LEFT_BRIDGE,
+        // STT misrecognitions for "right"
         "wright" to RIGHT_BRIDGE,
         "wright bridge" to RIGHT_BRIDGE,
         "write" to RIGHT_BRIDGE,
         "write bridge" to RIGHT_BRIDGE,
-        "right tower" to RIGHT_BRIDGE,
-        "left tower" to LEFT_BRIDGE,
+        "rite" to RIGHT_BRIDGE,
+        "rye" to RIGHT_BRIDGE,
+        "rye tower" to OPP_RIGHT_TOWER,  // STT: "right tower" -> "rye tower"
+        "rite tower" to OPP_RIGHT_TOWER,
+        "aright" to RIGHT_BRIDGE,   // STT: "pekka right" -> "pek aright"
+        "upright" to OPP_RIGHT_TOWER, // STT: "top right" -> "upright"
+        "topright" to OPP_RIGHT_TOWER, // STT: "top right" no space
+        "topleft" to OPP_LEFT_TOWER,   // STT: "top left" no space
+        // STT misrecognitions for "left"
+        "lift" to LEFT_BRIDGE,      // STT: "left" -> "lift"
+        "loft" to LEFT_BRIDGE,
+        // Center
         "center" to CENTER,
         "middle" to CENTER,
         "mid" to CENTER,
+        "centre" to CENTER,
+        // Behind / back (defensive)
+        "behind" to BACK_CENTER,
         "behind_left" to BEHIND_LEFT,
         "back left" to BEHIND_LEFT,
         "behind left" to BEHIND_LEFT,
         "behind_right" to BEHIND_RIGHT,
         "back right" to BEHIND_RIGHT,
         "behind right" to BEHIND_RIGHT,
-        "front_left" to FRONT_LEFT,
-        "front left" to FRONT_LEFT,
-        "front_right" to FRONT_RIGHT,
-        "front right" to FRONT_RIGHT,
         "back_center" to BACK_CENTER,
         "back" to BACK_CENTER,
         "back center" to BACK_CENTER,
         "behind king" to BACK_CENTER,
-        "bridge" to LEFT_BRIDGE,
+        // Front (offensive)
+        "front_left" to FRONT_LEFT,
+        "front left" to FRONT_LEFT,
+        "front_right" to FRONT_RIGHT,
+        "front right" to FRONT_RIGHT,
+        // Bottom (same as behind/back)
+        "bottom left" to BEHIND_LEFT,
+        "bottom right" to BEHIND_RIGHT,
+        // Top (same as front/opponent side)
+        "top left" to OPP_LEFT_TOWER,
+        "top right" to OPP_RIGHT_TOWER,
+        // Opponent towers — "left tower" defaults to ENEMY (you'd never fireball your own)
+        "left tower" to OPP_LEFT_TOWER,
+        "right tower" to OPP_RIGHT_TOWER,
+        "his left tower" to OPP_LEFT_TOWER,
+        "his right tower" to OPP_RIGHT_TOWER,
+        "his king" to OPP_KING,
+        "his left" to OPP_LEFT_TOWER,
+        "his right" to OPP_RIGHT_TOWER,
+        "enemy left" to OPP_LEFT_TOWER,
+        "enemy right" to OPP_RIGHT_TOWER,
+        "enemy tower" to OPP_LEFT_TOWER,
+        "their king" to OPP_KING,
+        "opponent king" to OPP_KING,
+        // Player towers — must say "my" explicitly
+        "my left tower" to MY_LEFT_TOWER,
+        "my right tower" to MY_RIGHT_TOWER,
+        "my king" to MY_KING,
+        "my left" to MY_LEFT_TOWER,
+        "my right" to MY_RIGHT_TOWER,
+        // Defend — same as back left/right (defensive placement near your towers)
+        "defend left" to BEHIND_LEFT,
+        "defend right" to BEHIND_RIGHT,
+        "defend" to BACK_CENTER,
+        "defense left" to BEHIND_LEFT,
+        "defense right" to BEHIND_RIGHT,
+        "defense" to BACK_CENTER,
+        // STT hallucinations for "defend right/left"
+        "fenderite" to BEHIND_RIGHT,   // STT: "defend right" -> "fenderite"
+        "fender right" to BEHIND_RIGHT,
+        "fender left" to BEHIND_LEFT,
+        "fender" to BACK_CENTER,
+        "defened left" to BEHIND_LEFT,  // STT: "defend left" -> "defened left"
+        "defened right" to BEHIND_RIGHT,
+        "defended left" to BEHIND_LEFT,
+        "defended right" to BEHIND_RIGHT,
+        "defended back" to BACK_CENTER,
+        "defended" to BACK_CENTER,
+        "fund right" to BEHIND_RIGHT,  // STT: "defend right" -> "fund right"
+        "fund left" to BEHIND_LEFT,
+        "the fund right" to BEHIND_RIGHT, // STT: "defend right" -> "the fund right"
+        "the fund left" to BEHIND_LEFT,
+        "friend right" to BEHIND_RIGHT, // STT: "defend right" -> "the friend right"
+        "friend left" to BEHIND_LEFT,
+        "the friend right" to BEHIND_RIGHT,
+        "the friend left" to BEHIND_LEFT,
+        // Bare "king" = enemy king (you'd never target your own king)
+        "king" to OPP_KING,
+        "king tower" to OPP_KING,
     )
 }

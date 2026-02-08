@@ -14,13 +14,15 @@ import kotlinx.coroutines.*
  * Each scan classifies all 5 slots via CardClassifier (~5ms total).
  * Results cached in [currentHand] for instant lookup by CommandRouter.
  *
- * Replaces the previous pHash + Gemini calibration pipeline.
+ * Uses YOLOv8n-cls classifier via CardClassifier for real-time inference.
  */
 object HandDetector {
 
     private const val TAG = "ClashCompanion"
     private const val SCAN_INTERVAL_MS = 200L // ~5 FPS
     private const val MATCH_BRIGHTNESS_THRESHOLD = 80
+    /** Consecutive non-match frames needed to declare match ended (10 × 200ms = 2s) */
+    private const val MATCH_EXIT_FRAMES = 10
 
     // ── State ───────────────────────────────────────────────────────────
 
@@ -62,24 +64,33 @@ object HandDetector {
 
     /**
      * Detect if the user is in a match by checking card slot brightness.
+     * Checks slots 0 AND 2 (opposite ends) for robustness — both must be bright.
      * In-match cards have vivid art (avg brightness 120-180).
-     * Menu/loading screens are dark blue card backs (avg brightness 20-50).
+     * Menu/loading/results screens are dark (avg brightness 20-50).
      */
     private fun isInMatch(frame: Bitmap): Boolean {
         val rois = Coordinates.getCardSlotROIs(frame.width, frame.height)
-        if (rois.isEmpty()) return false
-        val roi = rois[0]
+        if (rois.size < 3) return false
 
+        // Check two slots for robustness (slot 0 and slot 2)
+        val brightCount = listOf(rois[0], rois[2]).count { roi ->
+            slotBrightness(frame, roi) > MATCH_BRIGHTNESS_THRESHOLD
+        }
+        return brightCount >= 2
+    }
+
+    /** Measure average brightness (0-255) of a card slot ROI. */
+    private fun slotBrightness(frame: Bitmap, roi: Coordinates.CardSlotROI): Long {
         val fx = roi.x.coerceIn(0, (frame.width - 1).coerceAtLeast(0))
         val fy = roi.y.coerceIn(0, (frame.height - 1).coerceAtLeast(0))
         val fw = roi.w.coerceAtMost((frame.width - fx).coerceAtLeast(1))
         val fh = roi.h.coerceAtMost((frame.height - fy).coerceAtLeast(1))
-        if (fw <= 0 || fh <= 0) return false
+        if (fw <= 0 || fh <= 0) return 0
 
         val crop = try {
             Bitmap.createBitmap(frame, fx, fy, fw, fh)
         } catch (e: Exception) {
-            return false
+            return 0
         }
 
         var brightnessSum = 0L
@@ -94,8 +105,7 @@ object HandDetector {
             }
         }
         crop.recycle()
-        val avgBrightness = brightnessSum / (w * h * 3)
-        return avgBrightness > MATCH_BRIGHTNESS_THRESHOLD
+        return brightnessSum / (w * h * 3)
     }
 
     // ── Background Scanner ──────────────────────────────────────────────
@@ -120,10 +130,12 @@ object HandDetector {
 
         consecutiveNullFrames = 0
         var matchDetected = false
+        var consecutiveNonMatch = 0
         Log.i(TAG, "CARD-ML: Starting background scan at ${1000 / SCAN_INTERVAL_MS} FPS")
 
         scanJob = scope.launch {
             var lastHand = mapOf<Int, String>()
+            val slotMissCount = mutableMapOf<Int, Int>() // slot -> consecutive scans with no detection
 
             while (isActive) {
                 val frame = ScreenCaptureService.getLatestFrame()
@@ -148,39 +160,65 @@ object HandDetector {
                 if (safeCopy == null) { delay(SCAN_INTERVAL_MS); continue }
 
                 try {
-                    // Check if we're in a match (once detected, stays detected)
+                    // Match detection with exit tracking
                     if (!matchDetected) {
+                        // Waiting for match to start
                         if (!isInMatch(safeCopy)) {
                             delay(SCAN_INTERVAL_MS)
                             continue
                         }
                         matchDetected = true
+                        consecutiveNonMatch = 0
                         Log.i(TAG, "CARD-ML: Match detected! Starting card classification...")
+                    } else {
+                        // Already in match — check if we've left
+                        if (!isInMatch(safeCopy)) {
+                            consecutiveNonMatch++
+                            if (consecutiveNonMatch >= MATCH_EXIT_FRAMES) {
+                                matchDetected = false
+                                consecutiveNonMatch = 0
+                                currentHand = emptyMap()
+                                lastHand = emptyMap()
+                                slotMissCount.clear()
+                                onHandChanged?.invoke(emptyMap())
+                                Log.i(TAG, "CARD-ML: Match ended — cleared hand state")
+                            }
+                            delay(SCAN_INTERVAL_MS)
+                            continue
+                        } else {
+                            consecutiveNonMatch = 0
+                        }
                     }
 
-                    // Classify all 5 card slots via ResNet
+                    // Classify all 5 card slots via YOLOv8n-cls
                     val scanStart = System.currentTimeMillis()
                     val newScan = CardClassifier.classifyHand(safeCopy, deckCards)
                     val scanMs = System.currentTimeMillis() - scanStart
 
-                    // Temporal smoothing: merge new scan with previous hand.
-                    // If a slot was identified before but is "?" now, keep the old value.
-                    // Only overwrite when the new scan has a positive identification.
+                    // Temporal smoothing with decay: keep old value for brief dips
+                    // (dimmed cards, animations) but drop after 5 consecutive misses (~1s).
                     val merged = lastHand.toMutableMap()
                     for (slot in 0..4) {
                         val newCard = newScan[slot]
                         if (newCard != null) {
                             merged[slot] = newCard
+                            slotMissCount[slot] = 0
+                        } else {
+                            val misses = (slotMissCount[slot] ?: 0) + 1
+                            slotMissCount[slot] = misses
+                            if (misses > 5) {
+                                // Card unrecognized for >1 second — remove from hand
+                                merged.remove(slot)
+                            }
+                            // If misses <= 5, keep lastHand value (grace period)
                         }
-                        // If newCard is null and slot was in lastHand, keep lastHand value (smoothing)
                     }
-                    // But if a card appears in a DIFFERENT slot now, remove it from old slot
+                    // If a card appears in a DIFFERENT slot now, remove it from old slot
                     // (handles card cycling after play)
                     val cardSlots = mutableMapOf<String, Int>()
                     for ((slot, card) in merged) {
                         val existing = cardSlots[card]
                         if (existing != null && newScan.containsKey(slot)) {
-                            // This card moved to a new slot -- remove from old
                             if (!newScan.containsKey(existing)) {
                                 merged.remove(existing)
                             }

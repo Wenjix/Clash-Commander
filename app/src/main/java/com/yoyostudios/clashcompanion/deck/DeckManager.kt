@@ -194,6 +194,9 @@ object DeckManager {
         val avgElixir = cards.map { it.elixir }.average()
         Log.i(TAG, "DECK: Loaded: $names | Avg: %.1f elixir".format(avgElixir))
 
+        // Write deck-boosted hotwords for STT (loaded by SpeechService at init)
+        context?.let { writeDeckHotwords(it, cards) }
+
         // Persist deck IDs for next app launch
         context?.let { ctx ->
             try {
@@ -204,6 +207,49 @@ object DeckManager {
             } catch (e: Exception) {
                 Log.w(TAG, "DECK: Failed to save deck: ${e.message}")
             }
+        }
+    }
+
+    /** Hotwords filename written to filesDir for SpeechService */
+    const val DECK_HOTWORDS_FILE = "deck_hotwords.txt"
+
+    /**
+     * Write a deck-boosted hotwords file for sherpa-onnx STT.
+     * Deck card names get weight 6.0 (strong bias), non-deck cards get 1.0.
+     * This dramatically improves STT accuracy for the user's actual deck.
+     */
+    private fun writeDeckHotwords(context: Context, cards: List<CardInfo>) {
+        try {
+            val deckNames = cards.map { it.name.uppercase() }.toSet()
+
+            // Read base hotwords from assets
+            val baseLines = context.assets.open("hotwords.txt")
+                .bufferedReader().use { it.readLines() }
+
+            val sb = StringBuilder()
+            for (line in baseLines) {
+                val trimmed = line.trim()
+                if (trimmed.isBlank()) continue
+                val colonIdx = trimmed.lastIndexOf(':')
+                if (colonIdx < 0) { sb.appendLine(trimmed); continue }
+
+                val word = trimmed.substring(0, colonIdx).trim()
+
+                // Check if this hotword matches any deck card name
+                val isDeckCard = deckNames.any { deckName ->
+                    word == deckName || deckName.contains(word) || word.contains(deckName)
+                }
+
+                // Deck cards: strong boost (6.0). Non-deck: minimal (1.0)
+                val weight = if (isDeckCard) 6.0f else 1.0f
+                sb.appendLine("$word :$weight")
+            }
+
+            val file = java.io.File(context.filesDir, DECK_HOTWORDS_FILE)
+            file.writeText(sb.toString())
+            Log.i(TAG, "DECK: Wrote deck-boosted hotwords (${deckNames.size} cards boosted)")
+        } catch (e: Exception) {
+            Log.w(TAG, "DECK: Failed to write deck hotwords: ${e.message}")
         }
     }
 

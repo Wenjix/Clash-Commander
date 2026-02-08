@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 /**
  * API client for Google Gemini 3 Flash.
  * Used for:
- *   - M6: Vision-based hand calibration (multimodal: images + text)
+ *   - Vision/multimodal queries (images + text)
  *   - M8: Real-time tactical decisions (text-only Smart Path)
  *
  * Separate from AnthropicClient which handles Opus only.

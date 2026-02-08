@@ -48,6 +48,32 @@ object CardAliases {
         // "arrows left" -> sometimes heard as "i was left"
         "i was left" to ("Arrows" to "left_bridge"),
         "i was right" to ("Arrows" to "right_bridge"),
+        // "mini pekka right" -> STT merges "pekka right" into "pek aright"
+        "mini pek aright" to ("Mini P.E.K.K.A" to "right_bridge"),
+        "pek aright" to ("Mini P.E.K.K.A" to "right_bridge"),
+        "mini pek aleft" to ("Mini P.E.K.K.A" to "left_bridge"),
+        "pek aleft" to ("Mini P.E.K.K.A" to "left_bridge"),
+        // "pekka right" -> STT produces "pecarite"
+        "pecarite" to ("Mini P.E.K.K.A" to "right_bridge"),
+        "pecaright" to ("Mini P.E.K.K.A" to "right_bridge"),
+        "pecaleft" to ("Mini P.E.K.K.A" to "left_bridge"),
+        "pek a lift" to ("Mini P.E.K.K.A" to "left_bridge"),
+        // STT merges everything into one word
+        "peklift" to ("Mini P.E.K.K.A" to "left_bridge"),
+        "pecalift" to ("Mini P.E.K.K.A" to "left_bridge"),
+        "pekleft" to ("Mini P.E.K.K.A" to "left_bridge"),
+        "pekright" to ("Mini P.E.K.K.A" to "right_bridge"),
+        "pecarite" to ("Mini P.E.K.K.A" to "right_bridge"),
+        // "minions left" -> STT truncates to "minift"
+        "minift" to ("Minions" to "left_bridge"),
+        // "musketeer right" -> STT merges into one word
+        "musketeeroit" to ("Musketeer" to "right_bridge"),
+        "musketeerite" to ("Musketeer" to "right_bridge"),
+        "musketeerleft" to ("Musketeer" to "left_bridge"),
+        // "mini pekka right" -> STT produces "mini peckerite"
+        "mini peckerite" to ("Mini P.E.K.K.A" to "right_bridge"),
+        "mini peckerite" to ("Mini P.E.K.K.A" to "right_bridge"),
+        "mini peckered" to ("Mini P.E.K.K.A" to "right_bridge"),
     )
 
     // ── Card aliases: lowercase alias -> proper-case official name ──────
@@ -70,12 +96,15 @@ object CardAliases {
 
         "arrows" to "Arrows",
         "arrow" to "Arrows",
+        "ours" to "Arrows",            // STT: "arrows" -> "ours"
+        "hours" to "Arrows",           // STT variant
 
         "fireball" to "Fireball",
         "fire ball" to "Fireball",
         "fire" to "Fireball",
 
         "giant" to "Giant",
+        "giants" to "Giant",           // STT: "giant's" cleaned to "giants"
 
         "musketeer" to "Musketeer",
         "musky" to "Musketeer",
@@ -90,6 +119,11 @@ object CardAliases {
         "peker" to "P.E.K.K.A",       // STT misrecognition
         "peca" to "P.E.K.K.A",
         "pega" to "P.E.K.K.A",        // STT misrecognition (Moonshine era)
+        "pek" to "P.E.K.K.A",         // STT: "mini pek aright"
+        "pecar" to "P.E.K.K.A",       // STT: "pecarite" fragment
+        "pack" to "P.E.K.K.A",        // STT: "pekka" -> "pack"
+        "packer" to "P.E.K.K.A",      // STT: "pekka" -> "packer"
+        "peck" to "P.E.K.K.A",        // STT: "pekka" -> "peck"
 
         // ══════════════════════════════════════════════════
         // ALL OTHER CARDS (alphabetical)
